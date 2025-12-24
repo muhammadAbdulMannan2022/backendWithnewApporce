@@ -106,7 +106,8 @@ router.post("/register", async (req, res) => {
     }
 
     res.status(200).json({
-      message: "OTP sent to your email. Please verify to complete registration.",
+      message:
+        "OTP sent to your email. Please verify to complete registration.",
       email,
     });
   } catch (error) {
@@ -382,7 +383,7 @@ router.post("/logout", async (req, res) => {
 });
 
 // Get current user endpoint (protected route example)
-router.get("/me", async (req, res) => {
+router.get("/profile", async (req, res) => {
   try {
     const { accessToken } = req.cookies;
 
