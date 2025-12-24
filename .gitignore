@@ -20,3 +20,4 @@ node_modules
 
 /src/generated/prisma
 .env
+docker-compose.yml
