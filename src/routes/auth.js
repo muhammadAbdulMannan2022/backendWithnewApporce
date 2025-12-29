@@ -381,6 +381,118 @@ router.post("/logout", async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
+// reset password
+// reset password
+router.post("/reset-password", async (req, res) => {
+  try {
+    // Safeguard: ensure req.body exists and is an object
+    if (!req.body || typeof req.body !== "object") {
+      return res.status(400).json({ message: "Invalid request body" });
+    }
+
+    const { email } = req.body;
+
+    // Now safely check for email
+    if (!email || typeof email !== "string" || email.trim() === "") {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    const trimmedEmail = email.trim().toLowerCase();
+
+    const user = await prisma.user.findUnique({
+      where: { email: trimmedEmail },
+    });
+
+    if (!user) {
+      // Security best practice: don't reveal if email exists or not
+      // Always return same success message to prevent user enumeration
+      return res
+        .status(200)
+        .json({ message: "OTP sent to your email if account exists" });
+    }
+
+    const otp = generateOTP();
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    await prisma.user.update({
+      where: { email: trimmedEmail },
+      data: {
+        otp,
+        otpExpiry,
+      },
+    });
+
+    try {
+      await sendOTPEmail(trimmedEmail, otp);
+      res.status(200).json({ message: "OTP sent to your email" });
+    } catch (error) {
+      console.error("Failed to send OTP email:", error);
+      // Don't reveal email failure — still say "sent" for security
+      res.status(200).json({ message: "OTP sent to your email" });
+      // Or if you prefer honesty in dev only:
+      // res.status(500).json({ message: "Failed to send email. Please try again." });
+    }
+  } catch (error) {
+    console.error("Reset password error:", error);
+    // Never expose raw error in production
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+// set new password
+router.post("/set-new-password", async (req, res) => {
+  try {
+    if (!req.body || typeof req.body !== "object") {
+      return res.status(400).json({ message: "Invalid request body" });
+    }
+
+    const { email, newPassword, accessToken } = req.body;
+
+    if (!accessToken) {
+      return res.status(401).json({ message: "Access token is required" });
+    }
+
+    if (!email || !newPassword) {
+      return res
+        .status(400)
+        .json({ message: "Email and new password are required" });
+    }
+
+    if (newPassword.length < 8) {
+      return res
+        .status(400)
+        .json({ message: "Password must be at least 8 characters long" });
+    }
+
+    let payload;
+    try {
+      payload = jwt.verify(accessToken, process.env.JWT_SECRET);
+    } catch (err) {
+      return res
+        .status(401)
+        .json({ message: "Invalid or expired reset token" });
+    }
+
+    // Optional: verify email matches token
+    if (payload.email !== email.trim().toLowerCase()) {
+      return res.status(401).json({ message: "Token does not match email" });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    await prisma.user.update({
+      where: { id: payload.userId },
+      data: {
+        password: hashedPassword,
+        // otp: null, otpExpiry: null  // remove if no longer using OTP
+      },
+    });
+
+    res.status(200).json({ message: "Password updated successfully" });
+  } catch (error) {
+    console.error("Set new password error:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
 
 // Get current user endpoint (protected route example)
 router.get("/profile", async (req, res) => {
