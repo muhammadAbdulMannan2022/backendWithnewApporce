@@ -3,9 +3,11 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 import authRoutes from "./routes/auth.js";
+import RedisStore from "rate-limit-redis";
+import Redis from "ioredis";
 
 const app = express();
-
+const redisClient = new Redis();
 // CORS
 app.use(
   cors({
@@ -20,13 +22,12 @@ app.use(cookieParser());
 
 // ✅ Rate limiting for /auth routes
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 50, // max 50 requests per window per IP
-  message: {
-    error: "Too many login attempts. Please try again later.",
-  },
-  standardHeaders: true, // Return rate limit info in headers
-  legacyHeaders: false, // Disable the old X-RateLimit headers
+  store: new RedisStore({
+    sendCommand: (...args) => redisClient.call(...args),
+  }),
+  windowMs: 15 * 60 * 1000,
+  max: 50,
+  message: "Too many login attempts, try again later",
 });
 
 app.use("/auth", authLimiter, authRoutes);
