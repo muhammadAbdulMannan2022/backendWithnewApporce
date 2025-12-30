@@ -119,7 +119,7 @@ router.post("/register", async (req, res) => {
 // Step 2: Verify OTP and complete registration
 router.post("/verify-otp", async (req, res) => {
   try {
-    const { email, otp } = req.body;
+    const { email, otp, verifyingFor } = req.body;
 
     if (!email || !otp) {
       return res.status(400).json({ message: "Email and OTP are required" });
@@ -132,7 +132,7 @@ router.post("/verify-otp", async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    if (user.isVerified) {
+    if (user.isVerified && verifyingFor === "signup") {
       return res.status(400).json({ message: "User already verified" });
     }
 
