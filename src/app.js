@@ -5,6 +5,7 @@ import rateLimit from "express-rate-limit";
 import authRoutes from "./routes/auth.js";
 import { RedisStore } from "rate-limit-redis";
 import Redis from "ioredis";
+import messageRoutes from "./routes/message.js";
 
 const app = express();
 const redisClient = new Redis({
@@ -37,6 +38,7 @@ const authLimiter = rateLimit({
 });
 
 app.use("/auth", authLimiter, authRoutes);
+app.use("/msg",messageRoutes)
 
 app.get("/", (req, res) => {
   res.json({ status: "ok" });

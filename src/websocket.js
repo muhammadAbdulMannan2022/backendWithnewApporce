@@ -1,48 +1,63 @@
 import { WebSocketServer } from "ws";
-import { prisma } from "./lib/prisma.js";
+import cookie from "cookie";
+import jwt from "jsonwebtoken";
+import { handleUsersRoute } from "./routes/usersws.js";
+import { handleRoomRoute } from "./routes/messagews.js";
 
 export function setupWebSocket(server) {
   const wss = new WebSocketServer({ server });
 
-  wss.on("connection", async (ws) => {
-    console.log("🟢 WebSocket connected");
+  wss.on("connection", (ws, req) => {
+    // parse cookies
+    const cookies = cookie.parse(req.headers.cookie || "");
+    let accessToken = cookies["accessToken"];
 
-    try {
-      // 1. Fetch all users from the database
-      // Be careful not to send sensitive data like passwords!
-      const users = await prisma.user.findMany({
-        select: {
-          id: true,
-          email: true,
-          isVerified: true,
-          createdAt: true,
-          // Do NOT include password or refresh tokens here
-        },
-      });
-
-      // 2. Send the users to the newly connected client
-      ws.send(JSON.stringify({ type: "ALL_USERS", data: users }));
-
-    } catch (error) {
-      console.error("Error fetching users for WS:", error);
-      ws.send(JSON.stringify({ type: "ERROR", message: "Failed to fetch users" }));
+    // Fallback 1: check query string for token
+    if (!accessToken) {
+      const url = new URL(req.url, `http://${req.headers.host}`);
+      accessToken = url.searchParams.get("token");
     }
 
-    // Handle incoming messages
-    ws.on("message", (message) => {
-      console.log("📩 Received:", message.toString());
-      
-      // Example: simple echo
-      // ws.send(`Server received: ${message}`);
-    });
+    // Fallback 2: check Authorization header (Bearer <token>)
+    if (!accessToken && req.headers['authorization']) {
+      const parts = req.headers['authorization'].split(' ');
+      if (parts.length === 2 && parts[0] === 'Bearer') {
+        accessToken = parts[1];
+      }
+    }
 
-    ws.on("close", () => {
-      console.log("🔴 WebSocket disconnected");
-    });
-    
-    ws.on("error", (err) => {
-        console.error("WS Error:", err);
-    });
+    console.log("WS Connection Attempt:", {
+      url: req.url,
+      headers: req.headers,
+      foundToken: !!accessToken
+    }); 
+
+    if (!accessToken) {
+      ws.close(4001, "Missing token");
+      return;
+    }
+
+    // verify JWT
+    let payload;
+    try {
+      payload = jwt.verify(accessToken, process.env.JWT_SECRET);
+    } catch (err) {
+      ws.close(4002, "Invalid token");
+      return;
+    }
+
+    const user = { id: payload.userId };
+    ws.userId = user.id;
+
+    // route logic
+    const { pathname } = new URL(req.url, `http://${req.headers.host}`);
+    if (pathname === "/users") {
+      handleUsersRoute(ws, wss, user);
+    } else if (pathname.startsWith("/room")) {
+      handleRoomRoute(ws, wss, pathname, user);
+    } else {
+      ws.close(4000, "Unknown route");
+    }
   });
 
   return wss;
