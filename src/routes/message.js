@@ -41,7 +41,7 @@ router.get(["/rooms", "/room"], auth, async (req, res) => {
       include: {
         messages: {
           orderBy: { createdAt: "desc" },
-          take: 1, // get latest message for preview
+          take: 1,
         },
       },
       orderBy: { createdAt: "desc" },
@@ -52,9 +52,9 @@ router.get(["/rooms", "/room"], auth, async (req, res) => {
 
     res.json({
       rooms,
-      // Sending the token allows the frontend to grab it 
+      // Sending the token allows the frontend to grab it
       // and pass it to: new WebSocket(`ws://...?token=${token}`)
-      token 
+      token,
     });
   } catch (err) {
     console.error("Get rooms error:", err);

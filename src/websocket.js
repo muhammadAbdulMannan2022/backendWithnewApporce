@@ -3,6 +3,7 @@ import cookie from "cookie";
 import jwt from "jsonwebtoken";
 import { handleUsersRoute } from "./routes/usersws.js";
 import { handleRoomRoute } from "./routes/messagews.js";
+import { handleMyRoomsRoute } from "./routes/roomsws.js";
 
 export function setupWebSocket(server) {
   const wss = new WebSocketServer({ server });
@@ -55,6 +56,8 @@ export function setupWebSocket(server) {
       handleUsersRoute(ws, wss, user);
     } else if (pathname.startsWith("/room")) {
       handleRoomRoute(ws, wss, pathname, user);
+    } else if (pathname === "/rooms") {
+      handleMyRoomsRoute(ws, wss, user);
     } else {
       ws.close(4000, "Unknown route");
     }

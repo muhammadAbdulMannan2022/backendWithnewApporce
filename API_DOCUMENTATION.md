@@ -161,45 +161,46 @@ Starts a chat with another user. Idempotent (returns existing room if one exists
 ### Connection Logic
 WebSockets cannot access HttpOnly cookies directly. You must append the token received from the `GET /msg/room` API.
 
-**Format:**
-```
-ws://localhost:4000/room/<ROOM_ID>?token=<ACCESS_TOKEN>
-```
+**URL Patterns:**
+1. **Chat Room:** `ws://localhost:4000/room/<ROOM_ID>?token=<ACCESS_TOKEN>`
+2. **Lobby/List:** `ws://localhost:4000/rooms?token=<ACCESS_TOKEN>` (🔥🔥 NEW)
 
 ### Event Reference
 
 #### A. Send Message (Client ➔ Server)
-You send this JSON to the server.
+*Only applicable for Room connection (/room/:id)*
 ```json
-{
-  "content": "Hello world"
-}
+{ "content": "Hello world" }
 ```
-*Note: The server will NOT reply to this message. You should optimistically add this message to your UI immediately.*
 
 #### B. Receive Message (Server ➔ Client)
-Received when **someone else** sends a message in the room.
-
-**Payload:**
+*From Room connection*
 ```json
 {
   "type": "NEW_MESSAGE",
+  "data": { ... }
+}
+```
+
+#### C. Room List Update (Server ➔ Client)
+*From Lobby connection (/rooms)*
+Received when a message is sent in any of your rooms. Use this to update the sidebar preview text.
+```json
+{
+  "type": "ROOM_UPDATE",
   "data": {
-    "id": "msg_uid_99",
     "roomId": "room_uid_1",
-    "senderId": 5,
-    "content": "Hello back!",
-    "createdAt": "2024-12-30T12:00:00Z"
+    "lastMessage": {
+      "content": "New message content...",
+      "createdAt": "..."
+    }
   }
 }
 ```
 
-#### C. Errors (Server ➔ Client)
+#### D. Errors
 ```json
-{
-  "type": "ERROR",
-  "message": "Access denied"
-}
+{ "type": "ERROR", "message": "..." }
 ```
 
 ---

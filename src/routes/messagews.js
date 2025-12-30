@@ -80,6 +80,25 @@ export async function handleRoomRoute(ws, wss, pathname, user) {
       });
       console.log(`[WS] Message BROADCASTED to others`);
 
+      // 3. Broadcast to LOBBY/LIST listeners (for real-time preview updates)
+      const participants = [room.user1Id, room.user2Id];
+      
+      wss.clients.forEach((client) => {
+        if (
+          client.readyState === WebSocket.OPEN &&
+          client.isLobby && // Defined in roomsws.js
+          participants.includes(client.userId) 
+        ) {
+          client.send(JSON.stringify({
+            type: "ROOM_UPDATE",
+            data: {
+              roomId,
+              lastMessage: newMessage
+            }
+          }));
+        }
+      });
+
     } catch (err) {
       console.error("[WS] Message Handler Error:", err);
       ws.send(JSON.stringify({ type: "ERROR", message: "Failed to process message" }));
