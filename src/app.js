@@ -6,6 +6,7 @@ import authRoutes from "./routes/auth.js";
 import { RedisStore } from "rate-limit-redis";
 import Redis from "ioredis";
 import messageRoutes from "./routes/message.js";
+import { admin, adminRouter } from "./admin-setup.js";
 
 const app = express();
 const redisClient = new Redis({
@@ -39,6 +40,10 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 redisClient.on("error", (err) => console.error("Redis error:", err));
+
+// AdminJS
+app.use(admin.options.rootPath, adminRouter);
+
 // ✅ Rate limiting for /auth routes
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -60,4 +65,3 @@ app.get("/", (req, res) => {
 });
 
 export default app;
-//
