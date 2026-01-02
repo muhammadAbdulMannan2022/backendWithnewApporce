@@ -5,7 +5,7 @@ __metadata:
   version: 8
   cacheKey: 10c0
 
-"@adminjs/design-system@npm:^4.1.0":
+"@adminjs/design-system@npm:^4.1.0, @adminjs/design-system@npm:^4.1.1":
   version: 4.1.1
   resolution: "@adminjs/design-system@npm:4.1.1"
   dependencies:
@@ -4740,6 +4740,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "learningbackend@workspace:."
   dependencies:
+    "@adminjs/design-system": "npm:^4.1.1"
     "@adminjs/express": "npm:^6.1.1"
     "@adminjs/prisma": "npm:^5.0.4"
     "@prisma/client": "npm:6"

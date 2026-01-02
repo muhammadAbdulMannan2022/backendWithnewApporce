@@ -13,17 +13,23 @@ const redisClient = new Redis({
   host: "127.0.0.1",
   port: 6379,
 });
-// CORS
+
+// 1. Mount AdminJS BEFORE CORS
+// This ensures AdminJS requests aren't subjected to the API CORS policy
+app.use(admin.options.rootPath, adminRouter);
+
+// 2. CORS Configuration
 const allowedOrigins = [
   "http://localhost:3000",
   "http://10.10.13.30:3000",
+  "http://localhost:4000", // Allow self-origin just in case
   process.env.CLIENT_URL,
 ];
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      // allow non-browser tools like Postman
+      // allow non-browser tools like Postman or same-origin direct navigation
       if (!origin) return callback(null, true);
 
       if (allowedOrigins.includes(origin)) {
@@ -40,9 +46,6 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 redisClient.on("error", (err) => console.error("Redis error:", err));
-
-// AdminJS
-app.use(admin.options.rootPath, adminRouter);
 
 // ✅ Rate limiting for /auth routes
 const authLimiter = rateLimit({
