@@ -1,34 +1,26 @@
 import http from "k6/http";
-import { check, sleep } from "k6";
+import { check } from "k6";
 
 export const options = {
-  stages: [
-    { duration: "10s", target: 5 }, // ramp up
-    { duration: "20s", target: 10 }, // steady load
-    { duration: "10s", target: 0 }, // ramp down
-  ],
+  scenarios: {
+    spike_test: {
+      executor: "constant-arrival-rate",
+      rate: 10, // start with 10 RPS
+      timeUnit: "1s",
+      duration: "1s",
+      preAllocatedVUs: 10,
+      maxVUs: 50,
+    },
+  },
 };
 
-const BASE_URL = "https://d43b51591bef.ngrok-free.app";
+const BASE_URL = "http://10.10.13.30:4000/";
 
 export default function () {
-  const payload = JSON.stringify({
-    email: "programalltest@gmail.com",
-    password: "12345678",
-  });
-
-  const params = {
-    headers: {
-      "Content-Type": "application/json",
-    },
-  };
-
-  const res = http.post(`${BASE_URL}/auth/login`, payload, params);
+  const res = http.get(BASE_URL);
 
   check(res, {
-    "status is 200 or 401": (r) => r.status === 200 || r.status === 401,
-    "response < 500ms": (r) => r.timings.duration < 500,
+    "status is 200": (r) => r.status === 200,
+    "response < 5000ms": (r) => r.timings.duration < 5000,
   });
-
-  sleep(1);
 }

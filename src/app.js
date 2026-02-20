@@ -7,6 +7,7 @@ import { RedisStore } from "rate-limit-redis";
 import Redis from "ioredis";
 import messageRoutes from "./routes/message.js";
 import { admin, adminRouter } from "./admin-setup.js";
+import compression from "compression";
 
 const app = express();
 const redisClient = new Redis({
@@ -39,7 +40,7 @@ app.use(
       return callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
-  })
+  }),
 );
 
 // Body parser & cookies
@@ -59,12 +60,15 @@ const authLimiter = rateLimit({
     sendCommand: (command, ...args) => redisClient.call(command, ...args),
   }),
 });
+app.use(compression());
 
 app.use("/auth", authLimiter, authRoutes);
 app.use("/msg", messageRoutes);
 
 app.get("/", (req, res) => {
-  res.json({ status: "ok" });
+  // for test
+  const longData = "a".repeat(20 * 1024 * 1024);
+  res.json({ status: "ok", longData });
 });
 
 export default app;
