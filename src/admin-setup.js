@@ -5,6 +5,7 @@ import { prisma } from './lib/prisma.js';
 import { Prisma } from '@prisma/client';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import bcrypt from 'bcryptjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -86,16 +87,38 @@ const admin = new AdminJS(adminOptions);
 
 const adminRouter = AdminJSExpress.buildAuthenticatedRouter(admin, {
   authenticate: async (email, password) => {
-    const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@example.com';
-    const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+    try {
+      const user = await prisma.user.findUnique({ 
+        where: { email } 
+      });
 
-    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-      return {
-        email: ADMIN_EMAIL,
-        title: 'Super Admin',
-      };
+      if (user && user.role === 'ADMIN') {
+        const isValidPassword = await bcrypt.compare(password, user.password);
+        if (isValidPassword) {
+          return {
+            email: user.email,
+            title: 'Super Admin',
+          };
+        }
+      }
+      
+      // Fallback to env variables if no admin user matches (optional, but keep for safety if desired)
+      // Or just return null if not in DB
+      const ENV_ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@example.com';
+      const ENV_ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+      
+      if (email === ENV_ADMIN_EMAIL && password === ENV_ADMIN_PASSWORD) {
+          return {
+              email: ENV_ADMIN_EMAIL,
+              title: 'Super Admin (Env)',
+          };
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Admin authentication error:', error);
+      return null;
     }
-    return null;
   },
   cookieName: 'adminjs-session',
   cookiePassword: process.env.COOKIE_PASSWORD || 'super-secret-password-at-least-32-chars-long',
@@ -109,5 +132,36 @@ const adminRouter = AdminJSExpress.buildAuthenticatedRouter(admin, {
     maxAge: 24 * 60 * 60 * 1000,
   }
 });
+
+export const initializeAdminUser = async () => {
+  const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@example.com';
+  const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+
+  try {
+    const adminExists = await prisma.user.findFirst({
+      where: {
+        role: 'ADMIN',
+      },
+    });
+
+    if (!adminExists) {
+      console.log('No admin user found in database. Creating default admin...');
+      const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, 10);
+      await prisma.user.create({
+        data: {
+          email: ADMIN_EMAIL,
+          password: hashedPassword,
+          role: 'ADMIN',
+          isVerified: true,
+        },
+      });
+      console.log(`Default admin created: ${ADMIN_EMAIL}`);
+    } else {
+      console.log('Admin user already exists in database.');
+    }
+  } catch (error) {
+    console.error('Error initializing admin user:', error);
+  }
+};
 
 export { admin, adminRouter };
