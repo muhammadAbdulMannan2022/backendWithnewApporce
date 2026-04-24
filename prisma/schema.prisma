@@ -49,3 +49,14 @@ model Message {
   @@index([senderId])
 }
 
+model Errors {
+  id                      String   @id @default(cuid())
+  message                 String
+  createdAt               DateTime @default(now())
+  endpoint               String
+  function_name           String?
+  flow_that_does_the_error String?
+  payload                 String?
+  stack                   String?
+}
+

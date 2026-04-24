@@ -8,6 +8,7 @@ import Redis from "ioredis";
 import messageRoutes from "./routes/message.js";
 import { admin, adminRouter } from "./admin-setup.js";
 import compression from "compression";
+import errorMiddleware from "./middlewares/error.js";
 
 const app = express();
 const redisClient = new Redis({
@@ -65,10 +66,31 @@ app.use(compression());
 app.use("/auth", authLimiter, authRoutes);
 app.use("/msg", messageRoutes);
 
+// TEMPORARY: Debug route to test error logging
+app.get("/debug/error", (req, res) => {
+  const err = new Error("This is a deliberate test error!");
+  err.status = 500;
+  err.functionName = "testErrorTrigger";
+  err.flow = "Debug/Testing";
+  throw err; 
+});
+
 app.get("/", (req, res) => {
   // for test
   const longData = "a".repeat(20 * 1024 * 1024);
   res.json({ status: "ok", longData });
 });
+
+// Handle 404 - Not Found
+app.use((req, res, next) => {
+  const err = new Error(`Route ${req.originalUrl} not found`);
+  err.status = 404;
+  err.functionName = "unknownRoute";
+  err.flow = "Routing";
+  next(err);
+});
+
+// Error handling middleware should be last
+app.use(errorMiddleware);
 
 export default app;
